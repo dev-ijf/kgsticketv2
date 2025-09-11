@@ -1,0 +1,45 @@
+FASPAY_USERNAME=bot35802
+FASPAY_PASSWORD=lmZajXgA
+FASPAY_MERCHANT_ID=35802
+FASPAY_MERCHANT=Indonesia Juara
+FASPAY_URL=https://web.faspay.co.id/cvr/300011/10
+STARSENDER_URL=https://api.starsender.online/api/send
+STARSENDER_TOKEN=94d86acf-0dcd-4c91-b104-6594a7a609dc
+NEXT_PUBLIC_APP_URL=https://event.kreativaglobal.id
+NEXT_PUBLIC_BASE_URL=https://event.kreativaglobal.id
+QSTASH_CURRENT_SIGNING_KEY="sig_5pyXknZ4rLZUyhn4T8gbdcJXjVgt"
+QSTASH_NEXT_SIGNING_KEY="sig_75ENBWJv3zoywqKqFjDcivoMesYG"
+QSTASH_TOKEN="eyJVc2VySUQiOiIyNWM3ZjcxYS1lYmQyLTQxMjktYjMwYi0xZDhiNGVlODI5NWQiLCJQYXNzd29yZCI6Ijc0YTJiZTlkMTdlMDQzZDg4MWQzYjRlYmUxZGEyMTQ5In0="
+QSTASH_URL="https://qstash.upstash.io"
+KV_URL="rediss://default:AfdcAAIncDFiYjBhM2Q2ZGMyN2Q0M2Q3YThlMzg0YzhiMWExNjYyM3AxNjMzMjQ@solid-bird-63324.upstash.io:6379"
+KV_REST_API_URL="https://solid-bird-63324.upstash.io"
+KV_REST_API_TOKEN="AfdcAAIncDFiYjBhM2Q2ZGMyN2Q0M2Q3YThlMzg0YzhiMWExNjYyM3AxNjMzMjQ"
+KV_REST_API_READ_ONLY_TOKEN="AvdcAAIgcDFW63Ll9u-K5InqzOq5A0qZaBKfdsd8BNk437NNf-Nx6w"
+REDIS_URL="rediss://default:AfdcAAIncDFiYjBhM2Q2ZGMyN2Q0M2Q3YThlMzg0YzhiMWExNjYyM3AxNjMzMjQ@solid-bird-63324.upstash.io:6379"
+# Recommended for most uses
+DATABASE_URL=postgresql://neondb_owner:npg_jyL3qv1leWKM@ep-spring-mountain-a1vksrcu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+
+# For uses requiring a connection without pgbouncer
+DATABASE_URL_UNPOOLED=postgresql://neondb_owner:npg_jyL3qv1leWKM@ep-spring-mountain-a1vksrcu.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+
+# Parameters for constructing your own connection string
+PGHOST=ep-spring-mountain-a1vksrcu-pooler.ap-southeast-1.aws.neon.tech
+PGHOST_UNPOOLED=ep-spring-mountain-a1vksrcu.ap-southeast-1.aws.neon.tech
+PGUSER=neondb_owner
+PGDATABASE=neondb
+PGPASSWORD=npg_jyL3qv1leWKM
+
+# Parameters for Vercel Postgres Templates
+POSTGRES_URL=postgresql://neondb_owner:npg_jyL3qv1leWKM@ep-spring-mountain-a1vksrcu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+POSTGRES_URL_NON_POOLING=postgresql://neondb_owner:npg_jyL3qv1leWKM@ep-spring-mountain-a1vksrcu.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+POSTGRES_USER=neondb_owner
+POSTGRES_HOST=ep-spring-mountain-a1vksrcu-pooler.ap-southeast-1.aws.neon.tech
+POSTGRES_PASSWORD=npg_jyL3qv1leWKM
+POSTGRES_DATABASE=neondb
+POSTGRES_URL_NO_SSL=postgresql://neondb_owner:npg_jyL3qv1leWKM@ep-spring-mountain-a1vksrcu-pooler.ap-southeast-1.aws.neon.tech/neondb
+POSTGRES_PRISMA_URL=postgresql://neondb_owner:npg_jyL3qv1leWKM@ep-spring-mountain-a1vksrcu-pooler.ap-southeast-1.aws.neon.tech/neondb?connect_timeout=15&sslmode=require
+
+# Neon Auth environment variables for Next.js
+NEXT_PUBLIC_STACK_PROJECT_ID=d0dde901-b3b1-444b-b750-12a0c4e7e73e
+NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY=pck_jg66m2sdqq84haefkznfexbcs7ymthczn617m0wnjwn60
+STACK_SECRET_SERVER_KEY=ssk_s4211r7hr0h5mhwf808pz3cap5f9h8ccg4k7y941eb700
