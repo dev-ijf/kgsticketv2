@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/neon"
 import { getOrderWithDetails } from "@/lib/data"
-import { sendEmail } from "@/lib/email-service"
+// import { sendEmail } from "@/lib/email-service"
 
 export async function POST(request: NextRequest) {
   try {
@@ -155,26 +155,28 @@ export async function POST(request: NextRequest) {
       }
     }
     // 6. Kirim email jika type email atau all
-    let emailResult = null
-    let emailStatus = "failed"
+    const emailResult = null
+    const emailStatus = "disabled" // Temporarily disabled
     if ((type === "email" || type === "all") && orderDetail.customer?.email && emailBody && emailSubject) {
-      try {
-        emailResult = await sendEmail({
-          to: orderDetail.customer.email,
-          subject: emailSubject,
-          html: emailBody,
-        })
-        if (emailResult && emailResult.data && emailResult.data.id) {
-          emailStatus = "success"
-          console.log("✅ Email terkirim ke:", orderDetail.customer.email)
-        } else {
-          emailStatus = "failed"
-          console.error("❌ Email gagal terkirim:", emailResult?.error)
-        }
-      } catch (err) {
-        emailStatus = "failed"
-        console.error("❌ Error kirim email:", err)
-      }
+      console.log("📧 Email functionality temporarily disabled for deployment")
+      // Temporarily commented out email sending
+      // try {
+      //   emailResult = await sendEmail({
+      //     to: orderDetail.customer.email,
+      //     subject: emailSubject,
+      //     html: emailBody,
+      //   })
+      //   if (emailResult && emailResult.data && emailResult.data.id) {
+      //     emailStatus = "success"
+      //     console.log("✅ Email terkirim ke:", orderDetail.customer.email)
+      //   } else {
+      //     emailStatus = "failed"
+      //     console.error("❌ Email gagal terkirim:", emailResult?.error)
+      //   }
+      // } catch (err) {
+      //   emailStatus = "failed"
+      //   console.error("❌ Error kirim email:", err)
+      // }
     }
 
     // 7. Insert ke notification_logs untuk WhatsApp
