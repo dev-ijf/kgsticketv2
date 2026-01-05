@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import Image from "next/image"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog"
+import { AttendeeForms } from "@/components/attendee-forms"
 
 interface TicketCheckoutProps {
   event: any
@@ -37,6 +38,7 @@ export function TicketCheckout({ event, paymentChannels }: TicketCheckoutProps) 
   const [isProcessing, setIsProcessing] = useState(false)
   const [emailError, setEmailError] = useState("")
   const [phoneError, setPhoneError] = useState("")
+  const [attendeeData, setAttendeeData] = useState<any[]>([])
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -228,6 +230,18 @@ export function TicketCheckout({ event, paymentChannels }: TicketCheckoutProps) 
       return
     }
 
+    // Validate attendee data
+    if (attendeeData.length > 0) {
+      const invalidAttendees = attendeeData.filter(attendee => 
+        !attendee.name || !attendee.email || !attendee.phone
+      )
+      
+      if (invalidAttendees.length > 0) {
+        alert("Mohon lengkapi data peserta yang masih kosong")
+        return
+      }
+    }
+
     setIsProcessing(true)
 
     try {
@@ -245,6 +259,7 @@ export function TicketCheckout({ event, paymentChannels }: TicketCheckoutProps) 
           customerPhone: formattedPhone,
           paymentChannelCode: paymentChannel,
           selectedTickets: selectedItems,
+          attendeeData: attendeeData,
           voucherCode: appliedVoucher?.code,
           grossAmount: getGrossAmount(),
           discountAmount: getDiscountAmount(),
@@ -519,6 +534,20 @@ export function TicketCheckout({ event, paymentChannels }: TicketCheckoutProps) 
               </CardContent>
             </Card>
           </>
+        )}
+
+        {/* Attendee Forms */}
+        {getTotalTickets() > 0 && (
+          <AttendeeForms
+            eventId={event.id}
+            totalTickets={getTotalTickets()}
+            customerData={{
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone
+            }}
+            onAttendeeDataChange={setAttendeeData}
+          />
         )}
 
         {/* Payment Method - Radio Buttons */}

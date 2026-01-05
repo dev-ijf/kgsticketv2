@@ -3,6 +3,13 @@ import { Redis } from "@upstash/redis"
 export const redis = new Redis({
   url: process.env.KV_REST_API_URL!,
   token: process.env.KV_REST_API_TOKEN!,
+  // Performance optimizations
+  retry: {
+    retries: 3,
+    delay: (attempt) => Math.min(attempt * 50, 500),
+  },
+  // Connection timeout
+  timeout: 10000,
 })
 
 export async function cacheOrder(orderReference: string, orderData: any, ttl = 3600) {

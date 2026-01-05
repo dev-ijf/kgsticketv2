@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createCustomer, createOrder, createOrderItems, createPaymentLog } from "@/lib/data"
+import { createCustomer, createOrder, createOrderItems, createPaymentLog, createOrderItemAttendees } from "@/lib/data"
 import { generateBillNo } from "@/lib/faspay-utils"
 import { createFaspayPayment } from "@/lib/faspay-service"
 import { sql } from "@/lib/neon"
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       customerPhone,
       paymentChannelCode,
       selectedTickets,
+      attendeeData,
       voucherCode,
       grossAmount,
       discountAmount,
@@ -134,6 +135,47 @@ export async function POST(request: NextRequest) {
     console.log("Order Reference:", orderReference)
     console.log("Order Status:", order.status)
 
+    // Get event data for ticket types
+    console.log("=== STEP 6.1: GETTING EVENT DATA ===")
+    const eventResult = await sql`
+      SELECT 
+        e.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', tt.id,
+              'name', tt.name,
+              'price', tt.price,
+              'quantity_total', tt.quantity_total,
+              'quantity_sold', tt.quantity_sold,
+              'tickets_per_purchase', tt.tickets_per_purchase
+            )
+          ) FILTER (WHERE tt.id IS NOT NULL),
+          '[]'::json
+        ) as ticket_types
+      FROM events e
+      LEFT JOIN ticket_types tt ON e.id = tt.event_id
+      WHERE e.id = ${eventId}
+      GROUP BY e.id
+    `
+    
+    const event = eventResult[0]
+    if (!event) {
+      console.error("❌ Event not found:", eventId)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Event not found",
+        },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      )
+    }
+
     // Create order items
     console.log("=== STEP 7: CREATING ORDER ITEMS ===")
     const orderItemsData = []
@@ -160,8 +202,45 @@ export async function POST(request: NextRequest) {
     }
 
     if (orderItemsData.length > 0) {
-      await createOrderItems(orderItemsData)
+      const createdOrderItems = await createOrderItems(orderItemsData)
       console.log("✅ Order items created:", orderItemsData.length)
+
+      // Create attendee data if provided
+      if (attendeeData && attendeeData.length > 0) {
+        console.log("=== STEP 7.1: CREATING ATTENDEE DATA ===")
+        const attendeesToCreate = []
+        
+        for (let i = 0; i < createdOrderItems.length; i++) {
+          const orderItem = createdOrderItems[i]
+          const ticketType = event.ticket_types.find((tt: any) => tt.id === orderItem.ticket_type_id)
+          
+          if (ticketType) {
+            // Calculate how many attendees for this order item
+            const attendeesPerItem = ticketType.tickets_per_purchase || 1
+            const startIndex = i * attendeesPerItem
+            
+            for (let j = 0; j < attendeesPerItem; j++) {
+              const attendeeIndex = startIndex + j
+              if (attendeeData[attendeeIndex]) {
+                const attendee = attendeeData[attendeeIndex]
+                attendeesToCreate.push({
+                  order_item_id: orderItem.id,
+                  attendee_name: attendee.name,
+                  attendee_email: attendee.email,
+                  attendee_phone_number: attendee.phone,
+                  custom_answers: attendee.customAnswers || {},
+                  barcode_id: null
+                })
+              }
+            }
+          }
+        }
+        
+        if (attendeesToCreate.length > 0) {
+          await createOrderItemAttendees(attendeesToCreate)
+          console.log("✅ Attendee data created:", attendeesToCreate.length)
+        }
+      }
     }
 
     // Update discount usage count if voucher was used

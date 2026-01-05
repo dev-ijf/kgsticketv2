@@ -11,6 +11,9 @@ import { TicketCheckout } from "@/components/ticket-checkout"
 import type { Metadata } from "next"
 import { ShareEventButton } from "@/components/share-event-button"
 
+// Revalidate every 15 minutes for better performance
+export const revalidate = 900
+
 interface EventPageProps {
   params: {
     slug: string

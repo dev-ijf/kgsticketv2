@@ -1,6 +1,12 @@
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+// Use pooled connection for better performance
+const sql = neon(process.env.DATABASE_URL!, {
+  // Connection pool settings for better performance
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 20, // Maximum number of connections in the pool
+})
 
 export { sql }
 

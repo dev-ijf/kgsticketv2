@@ -2,6 +2,9 @@ import { getOrderWithDetails } from "@/lib/data"
 import { notFound } from "next/navigation"
 import PaymentPage from "@/components/payment-page"
 
+// Revalidate every 5 minutes for payment pages (more frequent for real-time updates)
+export const revalidate = 300
+
 interface PaymentPageProps {
   params: {
     orderReference: string

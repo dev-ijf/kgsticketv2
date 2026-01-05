@@ -4,6 +4,9 @@ import { getEventBySlug, getPaymentChannels } from "@/lib/data"
 import { CheckoutForm } from "@/components/checkout-form"
 import { notFound } from "next/navigation"
 
+// Revalidate every 10 minutes for checkout pages
+export const revalidate = 600
+
 interface CheckoutPageProps {
   searchParams: {
     event?: string

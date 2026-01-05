@@ -5,6 +5,9 @@ import Image from "next/image"
 import { getEvents } from "@/lib/data"
 import EventGridWithLoading from "@/components/event-grid-with-loading"
 
+// Revalidate every 15 minutes for better performance
+export const revalidate = 900
+
 export default async function HomePage() {
   const events = await getEvents()
 
