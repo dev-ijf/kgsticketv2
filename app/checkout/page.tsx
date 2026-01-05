@@ -1,5 +1,3 @@
-"use client"
-
 import { getEventBySlug, getPaymentChannels } from "@/lib/data"
 import { CheckoutForm } from "@/components/checkout-form"
 import { notFound } from "next/navigation"
