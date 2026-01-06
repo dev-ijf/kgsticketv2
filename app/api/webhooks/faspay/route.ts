@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getOrderWithDetails, updateOrderStatus, createPaymentLog } from "@/lib/data"
-import { sql } from "@/lib/neon"
+import { getOrderWithDetails, updateOrderStatus, createPaymentLog, createTicketsFromAttendees } from "@/lib/data"
 import { generateFaspaySignature } from "@/lib/faspay-utils"
-import { generateTicketQR } from "@/lib/qr-generator"
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,49 +64,18 @@ export async function POST(request: NextRequest) {
     if (payment_status_code === "2" && order.status !== "paid") {
       // Update status order
       await updateOrderStatus(order.order_reference, "paid", payment_date)
+      console.log(`✅ Order ${order.order_reference} status updated to paid`)
 
-      // Generate tickets sesuai effective_ticket_count pada order_items
-      const ticketsData = []
-      for (const item of order.order_items) {
-        const ticketCount = item.effective_ticket_count || item.quantity || 1
-        for (let i = 0; i < ticketCount; i++) {
-          const ticketCode = `${order.order_reference}-${item.ticket_type.id}-${i + 1}`
-          const qr = await generateTicketQR(ticketCode, order.event.slug)
-          ticketsData.push({
-            order_id: order.id,
-            ticket_type_id: item.ticket_type.id,
-            ticket_code: ticketCode,
-            attendee_name: order.customer.name || "-",
-            attendee_email: order.customer.email || null,
-          })
-        }
+      // Create tickets from order_item_attendees (via coding, not trigger)
+      try {
+        console.log(`[WEBHOOK] Creating tickets from attendees for order_id: ${order.id}`)
+        const result = await createTicketsFromAttendees(order.id)
+        console.log(`✅ Tickets created: ${result.ticketsCreated}, Custom fields processed: ${result.customFieldsProcessed}`)
+      } catch (ticketError) {
+        console.error(`❌ Error creating tickets from attendees:`, ticketError)
+        // Don't throw - log the error but continue with webhook response
       }
 
-      if (ticketsData.length > 0) {
-        // Insert tickets using Neon
-        const values = ticketsData.map((ticket) => [
-          ticket.order_id,
-          ticket.ticket_type_id,
-          ticket.ticket_code,
-          ticket.attendee_name,
-          ticket.attendee_email,
-        ])
-
-        await sql`
-          INSERT INTO tickets (order_id, ticket_type_id, ticket_code, attendee_name, attendee_email)
-          SELECT * FROM ${sql(values)}
-        `
-
-        // Update quantity_sold di ticket_types
-        for (const item of order.order_items) {
-          const ticketCount = item.effective_ticket_count || item.quantity || 1
-          await sql`
-            UPDATE ticket_types 
-            SET quantity_sold = quantity_sold + ${ticketCount}
-            WHERE id = ${item.ticket_type.id}
-          `
-        }
-      }
       // Kirim WhatsApp paid via QStash
       const { scheduleNotification } = await import("@/lib/qstash")
       await scheduleNotification(order.order_reference, "whatsapp", 0, { paid: true })

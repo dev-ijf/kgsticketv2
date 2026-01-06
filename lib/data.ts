@@ -486,3 +486,181 @@ export async function getOrderItemAttendees(orderItemId: number) {
     return [];
   }
 }
+
+/**
+ * Create tickets from order_item_attendees when order status changes to paid
+ * This function replaces the database trigger functionality
+ */
+export async function createTicketsFromAttendees(orderId: number) {
+  try {
+    console.log(`[createTicketsFromAttendees] Starting for order_id: ${orderId}`);
+
+    // Get all attendees for this order with their order item and ticket type info
+    const attendeesResult = await sql`
+      SELECT 
+        oia.id as attendee_id,
+        oia.order_item_id,
+        oia.attendee_name,
+        oia.attendee_email,
+        oia.attendee_phone_number,
+        oia.custom_answers,
+        oia.barcode_id,
+        oi.ticket_type_id,
+        oi.order_id,
+        tt.event_id
+      FROM order_item_attendees oia
+      JOIN order_items oi ON oia.order_item_id = oi.id
+      JOIN ticket_types tt ON oi.ticket_type_id = tt.id
+      WHERE oi.order_id = ${orderId}
+        AND oia.ticket_id IS NULL
+      ORDER BY oia.id ASC
+    `;
+
+    if (attendeesResult.length === 0) {
+      console.log(`[createTicketsFromAttendees] No attendees found for order_id: ${orderId}`);
+      return { ticketsCreated: 0, customFieldsProcessed: 0 };
+    }
+
+    console.log(`[createTicketsFromAttendees] Found ${attendeesResult.length} attendees to process`);
+
+    let ticketsCreated = 0;
+    let customFieldsProcessed = 0;
+    const ticketTypeUpdates: Record<number, number> = {}; // ticket_type_id -> count
+
+    for (const attendee of attendeesResult) {
+      try {
+        // Generate ticket code - use barcode_id if available, otherwise generate random
+        let ticketCode: string;
+        if (attendee.barcode_id && attendee.barcode_id.trim() !== '') {
+          ticketCode = attendee.barcode_id;
+          console.log(`[createTicketsFromAttendees] Using barcode_id as ticket_code: ${ticketCode}`);
+        } else {
+          // Generate random 8-character string (alphanumeric)
+          const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          ticketCode = '';
+          for (let i = 0; i < 8; i++) {
+            ticketCode += chars[Math.floor(Math.random() * chars.length)];
+          }
+          console.log(`[createTicketsFromAttendees] Generated random ticket_code: ${ticketCode}`);
+        }
+
+        // Create ticket
+        const ticketResult = await sql`
+          INSERT INTO tickets (
+            order_id,
+            ticket_type_id,
+            ticket_code,
+            attendee_name,
+            attendee_email,
+            attendee_phone_number,
+            created_at,
+            updated_at
+          ) VALUES (
+            ${attendee.order_id},
+            ${attendee.ticket_type_id},
+            ${ticketCode},
+            ${attendee.attendee_name},
+            ${attendee.attendee_email},
+            ${attendee.attendee_phone_number},
+            NOW(),
+            NOW()
+          )
+          RETURNING id
+        `;
+
+        const ticketId = ticketResult[0]?.id;
+        if (!ticketId) {
+          console.error(`[createTicketsFromAttendees] Failed to create ticket for attendee_id: ${attendee.attendee_id}`);
+          continue;
+        }
+
+        console.log(`[createTicketsFromAttendees] Created ticket_id: ${ticketId} for attendee_id: ${attendee.attendee_id}`);
+        ticketsCreated++;
+
+        // Update order_item_attendees with ticket_id
+        await sql`
+          UPDATE order_item_attendees
+          SET ticket_id = ${ticketId}
+          WHERE id = ${attendee.attendee_id}
+        `;
+
+        // Process custom_answers if exists
+        if (attendee.custom_answers && typeof attendee.custom_answers === 'object') {
+          const customAnswers = attendee.custom_answers;
+          const eventId = attendee.event_id;
+
+          console.log(`[createTicketsFromAttendees] Processing custom_answers for ticket_id: ${ticketId}`, customAnswers);
+
+          // Get all custom fields for this event
+          const customFieldsResult = await sql`
+            SELECT id, field_name
+            FROM event_custom_fields
+            WHERE event_id = ${eventId}
+          `;
+
+          // Create a map of field_name -> custom_field_id
+          const fieldNameToId: Record<string, number> = {};
+          for (const field of customFieldsResult) {
+            fieldNameToId[field.field_name] = field.id;
+          }
+
+          // Insert custom field answers
+          for (const [fieldName, answerValue] of Object.entries(customAnswers)) {
+            const customFieldId = fieldNameToId[fieldName];
+            
+            if (customFieldId) {
+              try {
+                await sql`
+                  INSERT INTO ticket_custom_field_answers (
+                    ticket_id,
+                    custom_field_id,
+                    answer_value,
+                    created_at
+                  ) VALUES (
+                    ${ticketId},
+                    ${customFieldId},
+                    ${String(answerValue)},
+                    NOW()
+                  )
+                  ON CONFLICT (ticket_id, custom_field_id) DO NOTHING
+                `;
+                customFieldsProcessed++;
+                console.log(`[createTicketsFromAttendees] Inserted custom field answer: ticket_id=${ticketId}, field_name=${fieldName}, custom_field_id=${customFieldId}`);
+              } catch (cfError) {
+                console.error(`[createTicketsFromAttendees] Error inserting custom field answer for field_name=${fieldName}:`, cfError);
+              }
+            } else {
+              console.warn(`[createTicketsFromAttendees] Custom field not found: field_name=${fieldName} for event_id=${eventId}`);
+            }
+          }
+        }
+
+        // Track ticket type for quantity_sold update
+        if (!ticketTypeUpdates[attendee.ticket_type_id]) {
+          ticketTypeUpdates[attendee.ticket_type_id] = 0;
+        }
+        ticketTypeUpdates[attendee.ticket_type_id]++;
+
+      } catch (attendeeError) {
+        console.error(`[createTicketsFromAttendees] Error processing attendee_id ${attendee.attendee_id}:`, attendeeError);
+      }
+    }
+
+    // Update quantity_sold for each ticket type
+    for (const [ticketTypeId, count] of Object.entries(ticketTypeUpdates)) {
+      await sql`
+        UPDATE ticket_types
+        SET quantity_sold = COALESCE(quantity_sold, 0) + ${Number(count)}
+        WHERE id = ${Number(ticketTypeId)}
+      `;
+      console.log(`[createTicketsFromAttendees] Updated quantity_sold for ticket_type_id=${ticketTypeId} by ${count}`);
+    }
+
+    console.log(`[createTicketsFromAttendees] Completed for order_id: ${orderId}. Tickets created: ${ticketsCreated}, Custom fields processed: ${customFieldsProcessed}`);
+
+    return { ticketsCreated, customFieldsProcessed };
+  } catch (error) {
+    console.error(`[createTicketsFromAttendees] Error for order_id ${orderId}:`, error);
+    throw error;
+  }
+}

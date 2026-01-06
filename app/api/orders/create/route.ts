@@ -178,6 +178,12 @@ export async function POST(request: NextRequest) {
 
     // Create order items
     console.log("=== STEP 7: CREATING ORDER ITEMS ===")
+    console.log("Selected tickets:", JSON.stringify(selectedTickets, null, 2))
+    console.log("Attendee data received:", attendeeData ? `${attendeeData.length} items` : "null/undefined")
+    if (attendeeData && attendeeData.length > 0) {
+      console.log("Attendee data details:", JSON.stringify(attendeeData, null, 2))
+    }
+
     const orderItemsData = []
     for (const item of selectedTickets) {
       console.log("Processing ticket item:", item)
@@ -189,58 +195,188 @@ export async function POST(request: NextRequest) {
 
       if (ticketTypeResult.length > 0) {
         const ticketType = ticketTypeResult[0]
+        // Calculate effective_ticket_count: quantity * tickets_per_purchase
+        const effectiveTicketCount = item.quantity * (ticketType.tickets_per_purchase || 1)
+        
         const orderItem = {
           order_id: order.id,
           ticket_type_id: item.ticketTypeId,
           quantity: item.quantity,
           price_per_ticket: ticketType.price,
-          effective_ticket_count: item.quantity,
+          effective_ticket_count: effectiveTicketCount,
         }
         orderItemsData.push(orderItem)
-        console.log("Added order item:", orderItem)
+        console.log("Added order item:", {
+          ...orderItem,
+          tickets_per_purchase: ticketType.tickets_per_purchase
+        })
       }
     }
 
     if (orderItemsData.length > 0) {
       const createdOrderItems = await createOrderItems(orderItemsData)
-      console.log("✅ Order items created:", orderItemsData.length)
+      console.log("✅ Order items created:", createdOrderItems.length)
+      console.log("Created order items details:", JSON.stringify(createdOrderItems, null, 2))
 
-      // Create attendee data if provided
-      if (attendeeData && attendeeData.length > 0) {
-        console.log("=== STEP 7.1: CREATING ATTENDEE DATA ===")
-        const attendeesToCreate = []
+      // ALWAYS create attendee data - use customer data as default if attendeeData not provided
+      console.log("=== STEP 7.1: CREATING ATTENDEE DATA ===")
+      console.log("Created order items:", JSON.stringify(createdOrderItems, null, 2))
+      console.log("Event ticket types:", JSON.stringify(event.ticket_types, null, 2))
+      console.log("Attendee data received:", attendeeData ? `${attendeeData.length} items` : "null/undefined")
+      
+      const attendeesToCreate = []
+      let attendeeDataIndex = 0 // Track position in attendeeData array
+      
+      for (let i = 0; i < createdOrderItems.length; i++) {
+        const orderItem = createdOrderItems[i]
+        console.log(`\n--- Processing order item ${i} ---`)
+        console.log("Order item:", JSON.stringify(orderItem, null, 2))
         
-        for (let i = 0; i < createdOrderItems.length; i++) {
-          const orderItem = createdOrderItems[i]
-          const ticketType = event.ticket_types.find((tt: any) => tt.id === orderItem.ticket_type_id)
-          
-          if (ticketType) {
-            // Calculate how many attendees for this order item
-            const attendeesPerItem = ticketType.tickets_per_purchase || 1
-            const startIndex = i * attendeesPerItem
-            
-            for (let j = 0; j < attendeesPerItem; j++) {
-              const attendeeIndex = startIndex + j
-              if (attendeeData[attendeeIndex]) {
-                const attendee = attendeeData[attendeeIndex]
-                attendeesToCreate.push({
-                  order_item_id: orderItem.id,
-                  attendee_name: attendee.name,
-                  attendee_email: attendee.email,
-                  attendee_phone_number: attendee.phone,
-                  custom_answers: attendee.customAnswers || {},
-                  barcode_id: null
-                })
-              }
-            }
+        // Try to find ticket type from event data first
+        let ticketType = event.ticket_types?.find((tt: any) => tt.id === orderItem.ticket_type_id)
+        
+        // If not found, fetch from database
+        if (!ticketType) {
+          console.log(`Ticket type not found in event data, fetching from database for ticket_type_id=${orderItem.ticket_type_id}`)
+          const ticketTypeResult = await sql`
+            SELECT * FROM ticket_types WHERE id = ${orderItem.ticket_type_id}
+          `
+          if (ticketTypeResult.length > 0) {
+            ticketType = ticketTypeResult[0]
+            console.log("Fetched ticket type from database:", JSON.stringify(ticketType, null, 2))
           }
         }
         
-        if (attendeesToCreate.length > 0) {
-          await createOrderItemAttendees(attendeesToCreate)
-          console.log("✅ Attendee data created:", attendeesToCreate.length)
+        // Calculate how many attendees for this order item
+        // Priority: effective_ticket_count > quantity * tickets_per_purchase > quantity > 1
+        let attendeesPerItem = 1
+        
+        // Try to get effective_ticket_count first (should be set when creating order item)
+        if (orderItem.effective_ticket_count != null && orderItem.effective_ticket_count > 0) {
+          attendeesPerItem = Number(orderItem.effective_ticket_count)
+          console.log(`Using effective_ticket_count: ${attendeesPerItem}`)
+        } else if (orderItem.quantity != null && orderItem.quantity > 0) {
+          // Fallback: calculate from quantity * tickets_per_purchase
+          const ticketsPerPurchase = ticketType?.tickets_per_purchase ? Number(ticketType.tickets_per_purchase) : 1
+          const quantity = Number(orderItem.quantity)
+          attendeesPerItem = quantity * ticketsPerPurchase
+          console.log(`Calculated from quantity * tickets_per_purchase: ${quantity} * ${ticketsPerPurchase} = ${attendeesPerItem}`)
+        } else {
+          // Last resort: use 1
+          console.warn(`⚠️ Could not determine attendeesPerItem, using default: 1`)
+          attendeesPerItem = 1
+        }
+        
+        // Ensure at least 1 attendee (safety check)
+        if (attendeesPerItem <= 0 || isNaN(attendeesPerItem)) {
+          console.warn(`⚠️ Invalid attendeesPerItem (${attendeesPerItem}), using 1 as default`)
+          attendeesPerItem = 1
+        }
+        
+        console.log(`Final attendeesPerItem: ${attendeesPerItem} (effective_ticket_count=${orderItem.effective_ticket_count}, quantity=${orderItem.quantity}, tickets_per_purchase=${ticketType?.tickets_per_purchase || 1})`)
+        
+        for (let j = 0; j < attendeesPerItem; j++) {
+          let attendee: any = null
+          
+          // Try to get attendee data from attendeeData array
+          if (attendeeData && attendeeData.length > 0 && attendeeDataIndex < attendeeData.length) {
+            attendee = attendeeData[attendeeDataIndex]
+            console.log(`Using attendee data from array [${attendeeDataIndex}]:`, {
+              name: attendee.name,
+              email: attendee.email,
+              phone: attendee.phone,
+              hasCustomAnswers: !!attendee.customAnswers
+            })
+            attendeeDataIndex++
+          } else {
+            // Use customer data as default if no attendee data provided
+            console.log(`Using customer data as default for attendee ${j + 1} of order item ${i}`)
+            attendee = {
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone,
+              customAnswers: {}
+            }
+          }
+          
+          if (attendee) {
+            const attendeeToCreate = {
+              order_item_id: orderItem.id,
+              attendee_name: attendee.name || customerName,
+              attendee_email: attendee.email || customerEmail,
+              attendee_phone_number: attendee.phone || customerPhone,
+              custom_answers: attendee.customAnswers || {},
+              barcode_id: attendee.barcodeId || null
+            }
+            attendeesToCreate.push(attendeeToCreate)
+            console.log(`Added attendee ${j + 1}/${attendeesPerItem} to create list:`, {
+              order_item_id: attendeeToCreate.order_item_id,
+              name: attendeeToCreate.attendee_name
+            })
+          } else {
+            // Fallback: create attendee with customer data if attendee is null
+            console.warn(`⚠️ Attendee is null for order item ${i}, attendee ${j + 1}, using customer data as fallback`)
+            const attendeeToCreate = {
+              order_item_id: orderItem.id,
+              attendee_name: customerName,
+              attendee_email: customerEmail,
+              attendee_phone_number: customerPhone,
+              custom_answers: {},
+              barcode_id: null
+            }
+            attendeesToCreate.push(attendeeToCreate)
+            console.log(`Added fallback attendee ${j + 1}/${attendeesPerItem} to create list`)
+          }
+        }
+        
+        // Safety check: ensure at least 1 attendee was created for this order item
+        const attendeesForThisItem = attendeesToCreate.filter(a => a.order_item_id === orderItem.id)
+        if (attendeesForThisItem.length === 0) {
+          console.error(`❌ CRITICAL: No attendees created for order item ${i} (ticket_type_id=${orderItem.ticket_type_id})`)
+          // Force create at least 1 attendee with customer data
+          attendeesToCreate.push({
+            order_item_id: orderItem.id,
+            attendee_name: customerName,
+            attendee_email: customerEmail,
+            attendee_phone_number: customerPhone,
+            custom_answers: {},
+            barcode_id: null
+          })
+          console.log(`✅ Created fallback attendee for order item ${i}`)
         }
       }
+      
+      console.log(`\n=== SUMMARY ===`)
+      console.log(`Total order items processed: ${createdOrderItems.length}`)
+      console.log(`Total attendees to create: ${attendeesToCreate.length}`)
+      console.log(`Attendee data provided: ${attendeeData ? attendeeData.length : 0} items`)
+      
+      if (attendeesToCreate.length > 0) {
+        console.log(`\nCreating ${attendeesToCreate.length} attendees...`)
+        console.log("Attendees to create sample:", JSON.stringify(attendeesToCreate.slice(0, 2), null, 2))
+        
+        try {
+          const createdAttendees = await createOrderItemAttendees(attendeesToCreate)
+          console.log("✅ Attendee data created successfully:", createdAttendees.length)
+          if (createdAttendees.length > 0) {
+            console.log("Created attendees sample:", JSON.stringify(createdAttendees.slice(0, 2), null, 2))
+          }
+        } catch (attendeeError) {
+          console.error("❌ Error creating attendees:", attendeeError)
+          throw attendeeError
+        }
+      } else {
+        console.error("❌ CRITICAL: No attendees to create - attendeesToCreate array is empty")
+        console.error("Debug info:", {
+          createdOrderItemsCount: createdOrderItems.length,
+          attendeeDataCount: attendeeData ? attendeeData.length : 0,
+          createdOrderItems: JSON.stringify(createdOrderItems, null, 2)
+        })
+        throw new Error("Failed to create attendees: attendeesToCreate array is empty")
+      }
+    } else {
+      console.error("❌ CRITICAL: No order items to create")
+      throw new Error("No order items created")
     }
 
     // Update discount usage count if voucher was used
