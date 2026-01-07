@@ -79,13 +79,36 @@ export default async function EventPage({ params }: EventPageProps) {
     })
   }
 
+  const isEventEnded = () => {
+    if (!event) return false
+
+    const now = new Date()
+    const endDate = event.end_date
+      ? new Date(event.end_date)
+      : event.start_date
+        ? new Date(event.start_date)
+        : null
+
+    if (!endDate || Number.isNaN(endDate.getTime())) return false
+
+    return endDate < now
+  }
+
   const formatTime = (startDate: string, endDate?: string) => {
     const start = new Date(startDate)
-    const startTime = start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+    const startTime = start.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    })
 
     if (endDate) {
       const end = new Date(endDate)
-      const endTime = end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+      const endTime = end.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      })
       return `${startTime} - ${endTime} WIB`
     }
 
@@ -136,6 +159,11 @@ export default async function EventPage({ params }: EventPageProps) {
                   <Badge variant="secondary" className="text-xs">
                     Event
                   </Badge>
+                  {isEventEnded() && (
+                    <Badge variant="outline" className="text-xs border-red-200 bg-red-50 text-red-700">
+                      Berakhir
+                    </Badge>
+                  )}
                   {event.ticket_types && event.ticket_types.length > 0 && (
                     <Badge variant="outline" className="text-xs">
                       {event.ticket_types.length} Tipe Tiket
@@ -162,7 +190,15 @@ export default async function EventPage({ params }: EventPageProps) {
                   }}
                 />
               </div>
-              <TicketCheckout event={event} paymentChannels={paymentChannels} />
+              {isEventEnded() ? (
+                <div className="text-center py-6">
+                  <p className="text-red-600 font-semibold text-sm sm:text-base">
+                    Pendaftaran untuk event ini sudah berakhir.
+                  </p>
+                </div>
+              ) : (
+                <TicketCheckout event={event} paymentChannels={paymentChannels} />
+              )}
             </CardContent>
           </Card>
         </div>

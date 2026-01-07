@@ -16,6 +16,21 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
     })
   }
 
+  const isEventEnded = (event: any) => {
+    if (!event) return false
+
+    const now = new Date()
+    const endDate = event.end_date
+      ? new Date(event.end_date)
+      : event.start_date
+        ? new Date(event.start_date)
+        : null
+
+    if (!endDate || Number.isNaN(endDate.getTime())) return false
+
+    return endDate < now
+  }
+
   const getLowestPrice = (ticketTypes: any[]) => {
     if (!ticketTypes || ticketTypes.length === 0) return 0
     return Math.min(...ticketTypes.map((tt) => tt.price))
@@ -57,7 +72,16 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Event</span>
-                <Badge variant="secondary">Tersedia</Badge>
+                {isEventEnded(event) ? (
+                  <Badge
+                    variant="outline"
+                    className="border-red-200 bg-red-50 text-red-700"
+                  >
+                    Berakhir
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Tersedia</Badge>
+                )}
               </div>
             </CardContent>
           </Card>
