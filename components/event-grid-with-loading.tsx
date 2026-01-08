@@ -36,13 +36,13 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.map((event: any) => (
         <Link key={event.id} href={`/event/${event.slug}`} className="cursor-pointer" prefetch={true}>
-          <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative w-full aspect-video bg-gray-100">
+          <Card className="overflow-hidden hover:shadow-xl hover:-translate-y-2 transition-all duration-300 ease-in-out">
+            <div className="relative w-full aspect-video bg-gray-100 overflow-hidden">
               <Image
                 src={event.image_url || "/placeholder.svg?height=200&width=400&text=Event"}
                 alt={event.name}
                 fill
-                className="object-contain"
+                className="object-contain hover:scale-105 transition-transform duration-300 ease-in-out"
               />
             </div>
             <CardContent className="p-4">
