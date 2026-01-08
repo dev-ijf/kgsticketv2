@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   generator: "v0.app",
-  title: "KGS Ticket - Platform Tiket Event Terpercaya",
+  title: "KGS Event",
   description: "Platform tiket event terpercaya dengan sistem pembayaran yang aman dan mudah. Dapatkan tiket event favorit Anda dengan cepat dan mudah.",
   keywords: "tiket event, platform tiket, event indonesia, pembayaran online, tiket konser",
   authors: [{ name: "KGS Ticket" }],
@@ -20,7 +20,7 @@ export const metadata = {
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://event.kreativaglobal.id'),
   openGraph: {
-    title: "KGS Ticket - Platform Tiket Event Terpercaya",
+    title: "KGS Event",
     description: "Platform tiket event terpercaya dengan sistem pembayaran yang aman dan mudah.",
     url: process.env.NEXT_PUBLIC_BASE_URL || 'https://event.kreativaglobal.id',
     siteName: "KGS Ticket",
@@ -29,7 +29,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "KGS Ticket - Platform Tiket Event Terpercaya",
+    title: "KGS Event",
     description: "Platform tiket event terpercaya dengan sistem pembayaran yang aman dan mudah.",
   },
   robots: {
