@@ -11,13 +11,13 @@ export function Navbar() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3">
               <Image
-                src="/images/logo-kgs.png"
-                alt="Kreativa Global School Logo"
+                src="https://tguray8zidjbrs4r.public.blob.vercel-storage.com/logo/logo-ken-full.png"
+                alt="Kreativa Education Logo"
                 width={48}
                 height={48}
                 className="h-12 w-12 object-contain"
               />
-              <span className="text-xl font-bold text-gray-900">Kreativa Global Event</span>
+              <span className="text-xl font-bold text-gray-900">Kreativa Education Event</span>
             </Link>
           </div>
         </div>
