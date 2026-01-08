@@ -7,12 +7,17 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   generator: "v0.app",
-  title: "KGS Event",
+  title: "Kreativa Education Event",
   description: "Platform tiket event terpercaya dengan sistem pembayaran yang aman dan mudah. Dapatkan tiket event favorit Anda dengan cepat dan mudah.",
   keywords: "tiket event, platform tiket, event indonesia, pembayaran online, tiket konser",
-  authors: [{ name: "KGS Event" }],
-  creator: "KGS Event",
-  publisher: "KGS Event",
+  authors: [{ name: "Kreativa Education Event" }],
+  creator: "Kreativa Education Event",
+  publisher: "Kreativa Education Event",
+  icons: {
+    icon: "https://tguray8zidjbrs4r.public.blob.vercel-storage.com/logo/logo-ken-full.png",
+    shortcut: "https://tguray8zidjbrs4r.public.blob.vercel-storage.com/logo/logo-ken-full.png",
+    apple: "https://tguray8zidjbrs4r.public.blob.vercel-storage.com/logo/logo-ken-full.png",
+  },
   formatDetection: {
     email: false,
     address: false,
@@ -20,16 +25,16 @@ export const metadata = {
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://event.kreativaglobal.id'),
   openGraph: {
-    title: "KGS Event",
+    title: "Kreativa Education Event",
     description: "Platform tiket event terpercaya dengan sistem pembayaran yang aman dan mudah.",
     url: process.env.NEXT_PUBLIC_BASE_URL || 'https://event.kreativaglobal.id',
-    siteName: "KGS Event",
+    siteName: "Kreativa Education Event",
     locale: "id_ID",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "KGS Event",
+    title: "Kreativa Education Event",
     description: "Platform tiket event terpercaya dengan sistem pembayaran yang aman dan mudah.",
   },
   robots: {
