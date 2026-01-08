@@ -609,9 +609,10 @@ export async function POST(request: NextRequest) {
         const messageBody = fillTemplate(notifTemplate.body, placeholderData)
 
         // 5. Kirim WhatsApp via fetch ke Starsender
+        // Gunakan nomor dari inputan langsung, bukan dari database customer
         const starsenderUrl = process.env.STARSENDER_URL
         const starsenderToken = process.env.STARSENDER_TOKEN
-        const phoneNumber = orderDetail.customer?.phone_number
+        const phoneNumber = customerPhone
         let starsenderRes = null
         let starsenderJson = null
         let status = "failed"
