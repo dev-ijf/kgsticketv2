@@ -20,11 +20,7 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
     if (!event) return false
 
     const now = new Date()
-    const endDate = event.end_date
-      ? new Date(event.end_date)
-      : event.start_date
-        ? new Date(event.start_date)
-        : null
+    const endDate = event.end_date ? new Date(event.end_date) : event.start_date ? new Date(event.start_date) : null
 
     if (!endDate || Number.isNaN(endDate.getTime())) return false
 
@@ -39,19 +35,14 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.map((event: any) => (
-        <Link
-          key={event.id}
-          href={`/event/${event.slug}`}
-          className="cursor-pointer"
-          prefetch={true}
-        >
+        <Link key={event.id} href={`/event/${event.slug}`} className="cursor-pointer" prefetch={true}>
           <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative h-48">
+            <div className="relative w-full aspect-video bg-gray-100">
               <Image
                 src={event.image_url || "/placeholder.svg?height=200&width=400&text=Event"}
                 alt={event.name}
                 fill
-                className="object-cover"
+                className="object-contain"
               />
             </div>
             <CardContent className="p-4">
@@ -73,10 +64,7 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Event</span>
                 {isEventEnded(event) ? (
-                  <Badge
-                    variant="outline"
-                    className="border-red-200 bg-red-50 text-red-700"
-                  >
+                  <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
                     Berakhir
                   </Badge>
                 ) : (
