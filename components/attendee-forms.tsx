@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Copy, User } from "lucide-react"
 
@@ -169,6 +170,115 @@ export function AttendeeForms({ eventId, totalTickets, customerData, onAttendeeD
             className="w-full"
             placeholder={`Masukkan ${field.field_label.toLowerCase()}`}
           />
+        </div>
+      )
+    } else if (field.field_type === "textarea") {
+      return (
+        <div key={field.id}>
+          <Label htmlFor={fieldId} className="text-sm font-medium">
+            {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
+          </Label>
+          <textarea
+            id={fieldId}
+            value={value}
+            onChange={(e) => updateAttendeeField(attendeeIndex, fieldId, e.target.value)}
+            className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            placeholder={`Masukkan ${field.field_label.toLowerCase()}`}
+          />
+        </div>
+      )
+    } else if (field.field_type === "date") {
+      return (
+        <div key={field.id}>
+          <Label htmlFor={fieldId} className="text-sm font-medium">
+            {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
+          </Label>
+          <Input
+            id={fieldId}
+            type="date"
+            value={value}
+            onChange={(e) => updateAttendeeField(attendeeIndex, fieldId, e.target.value)}
+            className="w-full"
+          />
+        </div>
+      )
+    } else if (field.field_type === "datetime") {
+      return (
+        <div key={field.id}>
+          <Label htmlFor={fieldId} className="text-sm font-medium">
+            {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
+          </Label>
+          <Input
+            id={fieldId}
+            type="datetime-local"
+            value={value}
+            onChange={(e) => updateAttendeeField(attendeeIndex, fieldId, e.target.value)}
+            className="w-full"
+          />
+        </div>
+      )
+    } else if (field.field_type === "radio") {
+      return (
+        <div key={field.id}>
+          <span className="text-sm font-medium flex items-center gap-1">
+            {field.field_label}
+            {field.is_required && <span className="text-red-500">*</span>}
+          </span>
+          <RadioGroup
+            value={value}
+            onValueChange={(val) => updateAttendeeField(attendeeIndex, fieldId, val)}
+            className="mt-2 space-y-2"
+            aria-label={field.field_label}
+          >
+            {field.options.map((option) => (
+              <label
+                key={option.id}
+                className="flex items-center gap-2 text-sm cursor-pointer"
+              >
+                <RadioGroupItem value={option.value} />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </RadioGroup>
+        </div>
+      )
+    } else if (field.field_type === "checkbox") {
+      const selectedValues = value ? value.split(",") : []
+
+      const toggleOption = (optionValue: string) => {
+        const isSelected = selectedValues.includes(optionValue)
+        const nextValues = isSelected
+          ? selectedValues.filter((v) => v !== optionValue)
+          : [...selectedValues, optionValue]
+
+        updateAttendeeField(attendeeIndex, fieldId, nextValues.join(","))
+      }
+
+      return (
+        <div key={field.id}>
+          <span className="text-sm font-medium flex items-center gap-1">
+            {field.field_label}
+            {field.is_required && <span className="text-red-500">*</span>}
+          </span>
+          <div className="mt-2 space-y-2">
+            {field.options.map((option) => {
+              const checked = selectedValues.includes(option.value)
+              return (
+                <label
+                  key={option.id}
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleOption(option.value)}
+                    className="h-4 w-4 rounded border border-input text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                  <span>{option.label}</span>
+                </label>
+              )
+            })}
+          </div>
         </div>
       )
     }
