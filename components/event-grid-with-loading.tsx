@@ -68,7 +68,9 @@ export default function EventGridWithLoading({ events }: { events: any[] }) {
                     Berakhir
                   </Badge>
                 ) : (
-                  <Badge variant="secondary">Tersedia</Badge>
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    Tersedia
+                  </Badge>
                 )}
               </div>
             </CardContent>
