@@ -1,4 +1,4 @@
-import { getOrderWithDetails } from "@/lib/data"
+import { getOrderWithDetails, enrichOrderTickets } from "@/lib/data"
 import { notFound } from "next/navigation"
 import PaymentPage from "@/components/payment-page"
 
@@ -18,6 +18,11 @@ export default async function Payment({ params }: PaymentPageProps) {
     notFound()
   }
 
+  const enrichedOrder =
+    order.tickets?.length > 0
+      ? await enrichOrderTickets(order)
+      : order
+
   // Ambil payment instructions
   let paymentInstructions = []
   try {
@@ -30,5 +35,5 @@ export default async function Payment({ params }: PaymentPageProps) {
     paymentInstructions = []
   }
 
-  return <PaymentPage order={order} paymentInstructions={paymentInstructions} />
+  return <PaymentPage order={enrichedOrder} paymentInstructions={paymentInstructions} />
 }

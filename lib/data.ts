@@ -664,3 +664,107 @@ export async function createTicketsFromAttendees(orderId: number) {
     throw error;
   }
 }
+
+type CustomFieldOption = { value: string; label: string };
+
+function toTicketId(id: unknown): number | null {
+  const num = Number(id);
+  return Number.isFinite(num) ? num : null;
+}
+
+function resolveCustomFieldDisplayValue(
+  fieldType: string,
+  answerValue: string,
+  options: CustomFieldOption[],
+): string {
+  if (fieldType === "dropdown" || fieldType === "radio") {
+    const match = options.find((opt) => opt.value === answerValue);
+    return match?.label ?? answerValue;
+  }
+  return answerValue;
+}
+
+export async function enrichOrderTickets(order: {
+  event_id: number;
+  tickets: Array<Record<string, unknown>>;
+}) {
+  const ticketIds = order.tickets
+    .map((t) => toTicketId(t.id))
+    .filter((id): id is number => id !== null);
+
+  if (ticketIds.length === 0) {
+    return order;
+  }
+
+  const seatResult = await sql`
+    SELECT t.id,
+      ROW_NUMBER() OVER (ORDER BY t.created_at ASC, t.id ASC)::int AS seat_number
+    FROM tickets t
+    JOIN orders o ON t.order_id = o.id
+    WHERE o.event_id = ${Number(order.event_id)}
+  `;
+
+  const seatByTicketId = new Map<number, number>(
+    seatResult.map((row) => [Number(row.id), Number(row.seat_number)]),
+  );
+
+  const customFieldsResult = await sql`
+    SELECT
+      tcfa.ticket_id,
+      ecf.field_label,
+      ecf.field_type,
+      ecf.field_name,
+      ecf.sort_order,
+      tcfa.answer_value,
+      COALESCE(
+        json_agg(
+          json_build_object('value', ecfo.option_value, 'label', ecfo.option_label)
+          ORDER BY ecfo.sort_order
+        ) FILTER (WHERE ecfo.id IS NOT NULL),
+        '[]'::json
+      ) AS options
+    FROM ticket_custom_field_answers tcfa
+    JOIN event_custom_fields ecf ON tcfa.custom_field_id = ecf.id
+    LEFT JOIN event_custom_field_options ecfo ON ecf.id = ecfo.custom_field_id
+    WHERE tcfa.ticket_id = ANY(${ticketIds})
+    GROUP BY tcfa.ticket_id, ecf.id, tcfa.answer_value
+    ORDER BY ecf.sort_order ASC
+  `;
+
+  const customFieldsByTicketId = new Map<
+    number,
+    Array<{ field_label: string; display_value: string }>
+  >();
+
+  for (const row of customFieldsResult) {
+    if (row.field_name === "name") continue;
+
+    const ticketId = Number(row.ticket_id);
+    const options = (row.options as CustomFieldOption[]) || [];
+    const displayValue = resolveCustomFieldDisplayValue(
+      row.field_type as string,
+      row.answer_value as string,
+      options,
+    );
+
+    if (!customFieldsByTicketId.has(ticketId)) {
+      customFieldsByTicketId.set(ticketId, []);
+    }
+    customFieldsByTicketId.get(ticketId)!.push({
+      field_label: row.field_label as string,
+      display_value: displayValue,
+    });
+  }
+
+  return {
+    ...order,
+    tickets: order.tickets.map((ticket) => {
+      const ticketId = toTicketId(ticket.id);
+      return {
+        ...ticket,
+        seat_number: ticketId != null ? seatByTicketId.get(ticketId) ?? null : null,
+        custom_fields: ticketId != null ? customFieldsByTicketId.get(ticketId) ?? [] : [],
+      };
+    }),
+  };
+}

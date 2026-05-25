@@ -66,7 +66,14 @@ interface PaymentPageProps {
       total_with_unique?: number // Tambahkan total_with_unique
     }
     tickets?: Array<{
+      id?: number
       ticket_code: string
+      attendee_name?: string
+      seat_number?: number | null
+      custom_fields?: Array<{
+        field_label: string
+        display_value: string
+      }>
     }>
     proof_transfer?: string; // Tambahkan field proof_transfer
   }
@@ -527,6 +534,31 @@ export default function PaymentPage({ order, paymentInstructions }: PaymentPageP
                         />
                       )}
                     </div>
+                  </div>
+
+                  <div className="border-t mt-4 pt-4 w-full max-w-xs space-y-3">
+                    {ticket.attendee_name && (
+                      <p className="text-lg font-semibold text-gray-900 text-center">
+                        {ticket.attendee_name}
+                      </p>
+                    )}
+                    {ticket.seat_number != null && (
+                      <div className="flex justify-center">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                          Nomor Kursi: {ticket.seat_number}
+                        </span>
+                      </div>
+                    )}
+                    {ticket.custom_fields && ticket.custom_fields.length > 0 && (
+                      <div className="space-y-2.5">
+                        {ticket.custom_fields.map((field) => (
+                          <div key={field.field_label}>
+                            <p className="text-xs text-gray-500">{field.field_label}</p>
+                            <p className="text-sm font-medium text-gray-800">{field.display_value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
