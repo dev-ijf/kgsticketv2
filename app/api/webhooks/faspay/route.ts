@@ -34,16 +34,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
-    // 2. Cari order berdasarkan virtual_account_number (trx_id)
+    // 2. Cari order: bill_no → order_reference, lalu pastikan trx_id = virtual_account_number
     const order = await getOrderWithDetails(bill_no)
     if (!order || order.virtual_account_number !== trx_id) {
       await createPaymentLog({
         order_reference: bill_no,
-        log_type: "order_not_found_or_va_mismatch",
+        log_type: "order_not_found_forwarded",
         request_payload: body,
         virtual_account_number: trx_id,
       })
-      return NextResponse.json({ error: "Order not found or VA mismatch" }, { status: 404 })
+
+      // Fallback: forward payload ke endpoint Faspay talentajuara
+      const forwardUrl = "https://event.talentajuara.sch.id/api/webhooks/faspay"
+      try {
+        console.log(`↪️ Order not found locally (bill_no=${bill_no}, trx_id=${trx_id}). Forwarding to ${forwardUrl}`)
+        const forwardRes = await fetch(forwardUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        const forwardPayload = await forwardRes.json().catch(() => ({}))
+        console.log(`↪️ Forward response status=${forwardRes.status}`, forwardPayload)
+        return NextResponse.json(forwardPayload, { status: forwardRes.status })
+      } catch (forwardError) {
+        console.error("❌ Failed to forward Faspay webhook:", forwardError)
+        return NextResponse.json({ error: "Order not found or VA mismatch" }, { status: 404 })
+      }
     }
 
     // 3. Jika payment_status_code == "2", update status jadi paid, insert ticket
