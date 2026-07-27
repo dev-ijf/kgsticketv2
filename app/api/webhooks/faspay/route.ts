@@ -37,13 +37,6 @@ export async function POST(request: NextRequest) {
     // 2. Cari order: bill_no → order_reference, lalu pastikan trx_id = virtual_account_number
     const order = await getOrderWithDetails(bill_no)
     if (!order || order.virtual_account_number !== trx_id) {
-      await createPaymentLog({
-        order_reference: bill_no,
-        log_type: "order_not_found_forwarded",
-        request_payload: body,
-        virtual_account_number: trx_id,
-      })
-
       // Fallback: forward payload ke endpoint Faspay talentajuara
       const forwardUrl = "https://event.talentajuara.sch.id/api/webhooks/faspay"
       try {
@@ -55,9 +48,40 @@ export async function POST(request: NextRequest) {
         })
         const forwardPayload = await forwardRes.json().catch(() => ({}))
         console.log(`↪️ Forward response status=${forwardRes.status}`, forwardPayload)
+
+        try {
+          await createPaymentLog({
+            order_reference: bill_no,
+            log_type: "callback",
+            request_payload: body,
+            response_payload: {
+              forwarded_to: forwardUrl,
+              forward_status: forwardRes.status,
+              forward_response: forwardPayload,
+            },
+            virtual_account_number: trx_id,
+          })
+        } catch (logError) {
+          console.error("❌ Failed to create payment log after forward:", logError)
+        }
+
         return NextResponse.json(forwardPayload, { status: forwardRes.status })
       } catch (forwardError) {
         console.error("❌ Failed to forward Faspay webhook:", forwardError)
+        try {
+          await createPaymentLog({
+            order_reference: bill_no,
+            log_type: "callback",
+            request_payload: body,
+            response_payload: {
+              forwarded_to: forwardUrl,
+              forward_error: forwardError instanceof Error ? forwardError.message : "Unknown forward error",
+            },
+            virtual_account_number: trx_id,
+          })
+        } catch (logError) {
+          console.error("❌ Failed to create payment log after forward error:", logError)
+        }
         return NextResponse.json({ error: "Order not found or VA mismatch" }, { status: 404 })
       }
     }
